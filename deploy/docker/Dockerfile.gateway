@@ -1,20 +1,22 @@
 # Use an official lightweight Node.js image as the base image
-FROM node:16-alpine
+FROM node:18-alpine
 
 # Set the working directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json
+# Copy package files
 COPY package*.json ./
 
 # Install dependencies
 RUN npm install
 
-# Copy the application code
-COPY . .
+# Copy source code
+COPY api-gateway/ ./api-gateway/
+COPY src/api/routes/user.routes.js ./src/api/routes/
+COPY .env ./
 
-# Expose the application port
+# Expose port
 EXPOSE 3000
 
-# Start the application
-CMD ["npm", "start"]
+# Start the service
+CMD ["node", "api-gateway/server.js"]

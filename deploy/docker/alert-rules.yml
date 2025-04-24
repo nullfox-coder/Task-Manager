@@ -1,0 +1,49 @@
+groups:
+  - name: system
+    rules:
+      - alert: HighCPUUsage
+        expr: 100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: High CPU usage on {{ $labels.instance }}
+          description: CPU usage is above 80% for 5 minutes
+
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: High memory usage on {{ $labels.instance }}
+          description: Memory usage is above 80% for 5 minutes
+
+  - name: application
+    rules:
+      - alert: HighLatency
+        expr: rate(http_request_duration_seconds_sum[5m]) / rate(http_request_duration_seconds_count[5m]) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: High latency on {{ $labels.endpoint }}
+          description: API endpoint {{ $labels.endpoint }} has high latency (>1s)
+
+      - alert: HighErrorRate
+        expr: rate(http_request_total{status=~"5.."}[5m]) / rate(http_request_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: High error rate on {{ $labels.endpoint }}
+          description: Error rate is above 5% for endpoint {{ $labels.endpoint }}
+
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Service {{ $labels.instance }} is down
+          description: Service {{ $labels.instance }} has been down for more than 1 minute 
