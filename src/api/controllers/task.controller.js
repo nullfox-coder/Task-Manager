@@ -1,4 +1,5 @@
-const { Task, TaskMetadata } = require('../../models');
+const { Task} = require('../../models/task.model');
+const { TaskMetadata } = require('../../models/task_metadata.model');
 const { TaskQueue } = require('../../services/task-queue');
 const cacheService = require('../../cache/cache.service');
 const { logger } = require('../../utils/logger');

@@ -1,15 +1,23 @@
+require('dotenv').config();
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const helmet = require('helmet');
+const fs = require('fs');
+const path = require('path');
 const { loginLimiter, apiLimiter } = require('./middleware/rate-limiter');
 const authenticate = require('./middleware/auth');
 const requestLogger = require('./middleware/request-logger');
-const userRoutes = require('../src/api/routes/user.routes');
 const serviceDiscovery = require('./services/service-discovery');
 const loadBalancer = require('./services/load-balancer');
 
 const app = express();
+
+// Create logs directory if it doesn't exist
+const logDir = process.env.LOG_DIR || 'logs';
+if (!fs.existsSync(logDir)) {
+  fs.mkdirSync(logDir);
+}
 
 // Security middleware
 app.use(helmet());
@@ -27,8 +35,34 @@ app.use(requestLogger);
 serviceDiscovery.registerService('task-service', process.env.TASK_SERVICE_URL || 'http://localhost:3001');
 serviceDiscovery.startHealthChecks();
 
-// Public routes (no authentication required)
-app.use('/api/users', loginLimiter, userRoutes);
+// Simple user auth routes (placeholder until integrated with src)
+app.post('/api/users/login', loginLimiter, (req, res) => {
+  const { username, password } = req.body;
+  
+  // Simple validation for demo purposes
+  if (username === 'admin' && password === 'password') {
+    const token = require('jsonwebtoken').sign(
+      { userId: 1, username: 'admin' },
+      process.env.JWT_SECRET || 'your-jwt-secret',
+      { expiresIn: '1h' }
+    );
+    
+    res.cookie('token', token, {
+      httpOnly: true,
+      maxAge: 3600000, // 1 hour
+      secure: process.env.NODE_ENV === 'production'
+    });
+    
+    res.json({ success: true, message: 'Login successful' });
+  } else {
+    res.status(401).json({ success: false, message: 'Invalid credentials' });
+  }
+});
+
+app.post('/api/users/logout', (req, res) => {
+  res.clearCookie('token');
+  res.json({ success: true, message: 'Logged out successfully' });
+});
 
 // Protected routes with load balancing
 app.use('/api/tasks', authenticate, apiLimiter, async (req, res) => {

@@ -1,47 +1,133 @@
 const { getFirestore } = require('../config/firestore.db');
+const { logger } = require('../utils/logger');
+const admin = require('firebase-admin');
 
 class TaskMetadata {
-  constructor(data = {}) {
-    this.description = data.description || '';
-    this.created_by = data.created_by || '';
-    this.default_priority = data.default_priority || 0;
-    this.expected_duration_ms = data.expected_duration_ms || 0;
-    this.default_parameters = data.default_parameters || {};
-    this.tags = data.tags || [];
-    this.is_deprecated = data.is_deprecated || false;
-    this.version = data.version || '1.0';
-    this.max_retries = data.max_retries || 3;
-    this.timeout_ms = data.timeout_ms || 300000; // 5 minutes default
-    this.resource_requirements = data.resource_requirements || {
-      cpu: 1.0,
-      memory_mb: 512
-    };
-    this.created_at = data.created_at || new Date();
-    this.updated_at = data.updated_at || new Date();
-  }
-
-  static async get(taskName) {
-    const db = getFirestore();
-    const doc = await db.collection('task_metadata').doc(taskName).get();
-    if (!doc.exists) {
-      return null;
+  static async create(data) {
+    try {
+      const db = getFirestore();
+      const docRef = db.collection('task_metadata').doc(data.task_id);
+      await docRef.set({
+        task_id: data.task_id,
+        owner_id: data.owner_id,
+        status: data.status || 'pending',
+        created_at: data.created_at || admin.firestore.FieldValue.serverTimestamp(),
+        started_at: data.started_at || null,
+        completed_at: data.completed_at || null,
+        frequency: data.frequency || 0,
+        description: data.description || '',
+        tags: data.tags || [],
+        expected_duration_ms: data.expected_duration_ms || 0,
+        resource_requirements: data.resource_requirements || {
+          cpu: 1.0,
+          memory_mb: 512
+        }
+      });
+      return this.findOne(data.task_id);
+    } catch (error) {
+      logger.error('Error creating task metadata:', error);
+      throw error;
     }
-    return new TaskMetadata(doc.data());
   }
 
-  async save(taskName) {
-    const db = getFirestore();
-    this.updated_at = new Date();
-    await db.collection('task_metadata').doc(taskName).set({
-      ...this,
-      created_at: this.created_at,
-      updated_at: this.updated_at
-    });
+  static async findOne(taskId) {
+    try {
+      const db = getFirestore();
+      const doc = await db.collection('task_metadata').doc(taskId).get();
+      if (!doc.exists) {
+        return null;
+      }
+      return { id: doc.id, ...doc.data() };
+    } catch (error) {
+      logger.error('Error finding task metadata:', error);
+      throw error;
+    }
   }
 
-  static async delete(taskName) {
-    const db = getFirestore();
-    await db.collection('task_metadata').doc(taskName).delete();
+  static async findAll(filter = {}) {
+    try {
+      const db = getFirestore();
+      let query = db.collection('task_metadata');
+      
+      if (filter.where) {
+        Object.entries(filter.where).forEach(([key, value]) => {
+          query = query.where(key, '==', value);
+        });
+      }
+      
+      if (filter.order) {
+        filter.order.forEach(([field, direction]) => {
+          query = query.orderBy(field, direction.toLowerCase());
+        });
+      }
+      
+      if (filter.limit) {
+        query = query.limit(filter.limit);
+      }
+      
+      const snapshot = await query.get();
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+      logger.error('Error finding task metadata:', error);
+      throw error;
+    }
+  }
+
+  static async update(taskId, data) {
+    try {
+      const db = getFirestore();
+      const docRef = db.collection('task_metadata').doc(taskId);
+      await docRef.update({
+        ...data,
+        updated_at: admin.firestore.FieldValue.serverTimestamp()
+      });
+      return this.findOne(taskId);
+    } catch (error) {
+      logger.error('Error updating task metadata:', error);
+      throw error;
+    }
+  }
+
+  static async delete(taskId) {
+    try {
+      const db = getFirestore();
+      await db.collection('task_metadata').doc(taskId).delete();
+      return true;
+    } catch (error) {
+      logger.error('Error deleting task metadata:', error);
+      throw error;
+    }
+  }
+
+  static async updateStatus(taskId, status) {
+    try {
+      const updates = { status };
+      
+      if (status === 'running') {
+        updates.started_at = admin.firestore.FieldValue.serverTimestamp();
+      } else if (status === 'completed') {
+        updates.completed_at = admin.firestore.FieldValue.serverTimestamp();
+      }
+      
+      return this.update(taskId, updates);
+    } catch (error) {
+      logger.error('Error updating task status:', error);
+      throw error;
+    }
+  }
+
+  static async incrementFrequency(taskId) {
+    try {
+      const db = getFirestore();
+      const docRef = db.collection('task_metadata').doc(taskId);
+      await docRef.update({
+        frequency: admin.firestore.FieldValue.increment(1)
+      });
+      return this.findOne(taskId);
+    } catch (error) {
+      logger.error('Error incrementing frequency:', error);
+      throw error;
+    }
   }
 }
 

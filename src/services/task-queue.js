@@ -14,6 +14,8 @@ class TaskQueue {
     if (!this.isProcessing) {
       this.processQueue();
     }
+
+    return taskData.taskId;
   }
 
   async processQueue() {
@@ -65,13 +67,7 @@ class TaskQueue {
       );
 
       // Update metadata in Firestore
-      await TaskMetadata.update(
-        {
-          status: 'completed',
-          completed_at: new Date()
-        },
-        { where: { task_id: taskId } }
-      );
+      await TaskMetadata.updateStatus(taskId, 'completed');
 
       logger.info(`Task completed: ${taskId}`);
     } catch (error) {
@@ -82,13 +78,7 @@ class TaskQueue {
       );
 
       // Update metadata in Firestore
-      await TaskMetadata.update(
-        {
-          status: 'failed',
-          error: error.message
-        },
-        { where: { task_id: taskId } }
-      );
+      await TaskMetadata.updateStatus(taskId, 'failed');
 
       throw error;
     }
@@ -101,4 +91,4 @@ class TaskQueue {
   }
 }
 
-module.exports = TaskQueue; 
+module.exports = { TaskQueue }; 
