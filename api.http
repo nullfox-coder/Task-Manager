@@ -1,0 +1,100 @@
+# Health check
+GET http://localhost:3000/health
+
+###
+
+# User Login - Get authentication token
+POST http://localhost:3000/api/users/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "password"
+}
+
+###
+
+# Get all tasks
+GET http://localhost:3000/api/tasks
+Authorization: Bearer your_jwt_token_her
+
+###
+
+# Get task by ID
+GET http://localhost:3000/api/tasks
+Authorization: Bearer your_jwt_token_here
+
+###
+
+# Create a new task
+POST http://localhost:3001/tasks
+Content-Type: application/json
+Authorization: Bearer your_jwt_token_here
+
+{
+  "name": "Sample Task",
+  "status": "created",
+  "frequency": 0,
+  "parentId": null,
+  "environment": {
+    "priority": "high",
+    "description": "This is a sample task description"
+  }
+}
+
+###
+
+# Update a task
+PATCH http://localhost:3001/tasks/your_task_id_here
+Content-Type: application/json
+Authorization: Bearer your_jwt_token_here
+
+{
+  "name": "Updated Task Name",
+  "status": "in_progress",
+  "frequency": 1
+}
+
+###
+
+# Delete a task
+DELETE http://localhost:3001/tasks/your_task_id_here
+Authorization: Bearer your_jwt_token_here
+
+###
+
+# Create Task with Metadata
+POST http://localhost:3001/tasks
+Content-Type: application/json
+Authorization: Bearer your_jwt_token_here
+
+{
+  "name": "Task with Metadata",
+  "status": "created",
+  "frequency": 0,
+  "environment": {
+    "description": "Task with detailed metadata",
+    "tags": ["important", "urgent"],
+    "expected_duration_ms": 3600000,
+    "resource_requirements": {
+      "cpu": 2.0,
+      "memory_mb": 1024
+    }
+  }
+}
+
+###
+
+# Create a subtask
+POST http://localhost:3001/tasks
+Content-Type: application/json
+Authorization: Bearer your_jwt_token_here
+
+{
+  "name": "Subtask Example",
+  "status": "created",
+  "parentId": "parent_task_id_here",
+  "environment": {
+    "description": "This is a subtask of another task"
+  }
+}

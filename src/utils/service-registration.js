@@ -18,8 +18,16 @@ const registerService = async (serviceInfo) => {
     // Get service discovery URL from environment or use default
     const serviceDiscoveryUrl = process.env.SERVICE_DISCOVERY_URL || 'http://localhost:3000/api/services/register';
     
+    // Format service info as expected by the API Gateway
+    const registrationData = {
+      name: serviceInfo.name,
+      url: `http://${serviceInfo.host}:${serviceInfo.port}`
+    };
+    
+    logger.info(`Attempting to register service at ${serviceDiscoveryUrl} with data: ${JSON.stringify(registrationData)}`);
+    
     // Register the service
-    const response = await axios.post(serviceDiscoveryUrl, serviceInfo);
+    const response = await axios.post(serviceDiscoveryUrl, registrationData);
     
     if (response.status === 200 || response.status === 201) {
       logger.info(`Successfully registered service: ${serviceInfo.name} at ${serviceInfo.host}:${serviceInfo.port}`);
@@ -58,16 +66,14 @@ const startHealthChecks = (serviceInfo) => {
     try {
       const healthData = {
         name: serviceInfo.name,
-        host: serviceInfo.host,
-        port: serviceInfo.port,
         status: 'healthy',
         timestamp: new Date().toISOString()
       };
       
-      await axios.post(serviceDiscoveryHealthUrl, healthData);
+      await axios.post(`${serviceDiscoveryHealthUrl}/${serviceInfo.name}`, healthData);
       logger.debug(`Health check sent for ${serviceInfo.name}`);
     } catch (error) {
-      logger.error(`Failed to send health check: ${error.message}`);
+      logger.debug(`Failed to send health check: ${error.message}`);
     }
   }, healthCheckInterval);
   

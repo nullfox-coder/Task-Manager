@@ -31,9 +31,56 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(requestLogger);
 
-// Register services
+// Register services - use port 3002 since 3001 is in use
 serviceDiscovery.registerService('task-service', process.env.TASK_SERVICE_URL || 'http://localhost:3001');
 serviceDiscovery.startHealthChecks();
+
+// Add service registration endpoint for services to self-register
+app.post('/api/services/register', (req, res) => {
+  try {
+    const { name, url } = req.body;
+    
+    console.log('Service registration request received:', req.body);
+    
+    if (!name || !url) {
+      console.error('Service registration failed: Missing name or URL');
+      return res.status(400).json({ 
+        message: 'Service name and URL are required',
+        received: req.body
+      });
+    }
+    
+    serviceDiscovery.registerService(name, url);
+    console.log(`Service ${name} registered at ${url}`);
+    res.status(201).json({ message: `Service ${name} registered successfully` });
+  } catch (error) {
+    console.error('Service registration error:', error);
+    res.status(500).json({ message: 'Failed to register service', error: error.message });
+  }
+});
+
+// Add health check update endpoint
+app.post('/api/services/health/:name', (req, res) => {
+  try {
+    const { name } = req.params;
+    const { status } = req.body;
+    
+    console.log(`Health update received for ${name}: ${status}`);
+    
+    const service = serviceDiscovery.getService(name);
+    if (!service) {
+      return res.status(404).json({ message: `Service ${name} not found` });
+    }
+    
+    service.isHealthy = status === 'healthy';
+    service.lastHealthCheck = Date.now();
+    
+    res.status(200).json({ message: `Health update for ${name} received` });
+  } catch (error) {
+    console.error('Health update error:', error);
+    res.status(500).json({ message: 'Failed to update health status', error: error.message });
+  }
+});
 
 // Simple user auth routes (placeholder until integrated with src)
 app.post('/api/users/login', loginLimiter, (req, res) => {
